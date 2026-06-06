@@ -1,70 +1,205 @@
-# Getting Started with Create React App
+# SocialFeed — React + Node/Express + MongoDB
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+SocialFeed is a full-stack social app where users can:
+- Sign up / log in (JWT auth)
+- Create posts with optional image uploads (Cloudinary)
+- Like posts (toggle)
+- Comment on posts (add/delete own comments)
+- Browse a paginated feed
 
-## Available Scripts
+This is a monorepo-style project with two packages:
+- **frontend/**: React (Create React App)
+- **Backend/**: Node.js/Express + MongoDB
 
-In the project directory, you can run:
+---
 
-### `npm start`
+## Quick architecture overview
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+### Frontend (React)
+- **Routing & auth gate**: `src/App.js`
+  - `/` is protected with `RequireAuth` (redirects to `/login` when not authenticated)
+- **Auth state**: `src/context/AuthContext.js`
+  - Stores JWT in `localStorage`
+  - Restores session by calling `GET /api/auth/me`
+- **API client**: `src/api/api.js` (+ re-exports in `src/api/index.js`)
+  - Uses Axios with an interceptor to attach `Authorization: Bearer <token>`
+- **Main feed UI**: `src/pages/Feed.js`
+  - Fetches posts with pagination
+  - Shows a “Join SocialFeed” banner when not logged in
+  - Renders `CreatePost` and `PostCard` components
+- **Post creation**: `src/components/CreatePost.js`
+  - Sends a `FormData` payload to `POST /api/posts`
+  - Image uploads are handled by the backend + Cloudinary
+- **Post interaction**: `src/components/PostCard.js`
+  - Like toggle: `PUT /api/posts/:id/like`
+  - Add comment: `POST /api/posts/:id/comment`
+  - Delete comment (only if the current user owns it)
+  - Delete post (only if the current user is the owner)
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### Backend (Express)
+- **Server bootstrap**: `Backend/index.js`
+  - Adds CORS + JSON body parsing
+  - Connects to MongoDB using `process.env.MONGO_URI`
+  - Mounts:
+    - `/api/auth` → `Backend/routes/auth.js`
+    - `/api/posts` → `Backend/routes/posts.js`
+- **JWT protection**: `Backend/middleware/auth.js`
+  - `protect` middleware reads `Authorization: Bearer ...`
+  - Verifies JWT and attaches `req.user`
+- **Cloudinary upload**: `Backend/middleware/cloudinary.js`
+  - Configures Cloudinary using environment variables
+  - Uses `multer-storage-cloudinary` + `multer` for `upload.single('image')`
+- **Data models**:
+  - `Backend/models/User.js`
+    - Hashes passwords via `bcryptjs`
+    - Provides `matchPassword()`
+  - `Backend/models/Post.js`
+    - Stores `text`, `imageUrl`, `imagePublicId`, `likes`, `comments`
 
-### `npm test`
+---
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Features & API (high level)
 
-### `npm run build`
+### Authentication
+- `POST /api/auth/signup`
+  - Validates input with `express-validator`
+  - Creates a user (password hashed)
+  - Returns `{ token, username, email, _id }`
+- `POST /api/auth/login`
+  - Validates input
+  - Checks password
+  - Returns JWT and user data
+- `GET /api/auth/me`
+  - Protected by `protect`
+  - Returns current user info (no password)
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### Posts / Feed
+- `GET /api/posts`
+  - Public feed
+  - Supports pagination via query params:
+    - `page` (default 1)
+    - `limit` (default 10)
+  - Sorted by `createdAt` descending
+- `POST /api/posts` (protected)
+  - Requires auth
+  - Accepts:
+    - `text` (optional)
+    - `image` (optional, multipart upload)
+  - Enforces: at least one of `text` or `image` must be provided
+  - If image is uploaded, the backend stores:
+    - `imageUrl` (Cloudinary URL)
+    - `imagePublicId` (used for deletion)
+- `DELETE /api/posts/:id` (protected)
+  - Only the post owner can delete
+  - Deletes Cloudinary asset if `imagePublicId` exists
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### Likes
+- `PUT /api/posts/:id/like` (protected)
+  - Toggle like/unlike for the current user
+  - Likes are stored as an array of usernames
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+### Comments
+- `POST /api/posts/:id/comment` (protected)
+  - Requires non-empty `text`
+  - Appends a comment with `{ username, userId, text }`
+- `DELETE /api/posts/:id/comment/:commentId` (protected)
+  - Only the comment author can delete
 
-### `npm run eject`
+---
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+## Environment variables
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### Frontend
+- `REACT_APP_API_URL` (optional)
+  - Base URL for API requests (Axios)
+  - Default in code: `http://localhost:3000/api`
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+### Backend
+Required / commonly used variables (refer to `Backend/` middleware):
+- `PORT` (optional) — server port (default `3000`)
+- `MONGO_URI` — MongoDB connection string
+- `JWT_SECRET` — JWT signing secret
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+Cloudinary (required for image uploads):
+- `CLOUDINARY_CLOUD_NAME`
+- `CLOUDINARY_API_KEY`
+- `CLOUDINARY_API_SECRET`
 
-## Learn More
+Note: `Backend/middleware/cloudinary.js` also supports parsing a `CLOUDINARY_URL` format if the individual vars are not provided.
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+CORS:
+- `Backend/index.js` uses `process.env.CLIENT_URL` (optional)
+  - Default: `http://localhost:3000`
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+---
 
-### Code Splitting
+## Project folder structure
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+```
+Social/
+  frontend/
+    public/
+    src/
+      api/
+      components/
+      context/
+      pages/
+      styles/
+      App.js
+      index.js
+    package.json
+    README.md
 
-### Analyzing the Bundle Size
+  Backend/
+    middleware/
+      auth.js
+      cloudinary.js
+    models/
+      Post.js
+      User.js
+    routes/
+      auth.js
+      posts.js
+    index.js
+    package.json
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+---
 
-### Making a Progressive Web App
+## How to run
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+> Run **frontend** and **backend** as two separate processes.
 
-### Advanced Configuration
+### Backend
+1. Go to `Backend/`
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Create a `.env` file with the required variables (`MONGO_URI`, `JWT_SECRET`, Cloudinary vars, etc.)
+4. Start the server:
+   ```bash
+   npm start
+   ```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+Backend listens on:
+- `http://localhost:3000` (default)
+- API routes are under `/api/...`
 
-### Deployment
+### Frontend
+1. Go to `frontend/`
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. (Optional) set `REACT_APP_API_URL` in `.env`
+4. Start the app:
+   ```bash
+   npm start
+   ```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+Frontend typically runs on:
+- `http://localhost:3000`
 
-### `npm run build` fails to minify
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+
