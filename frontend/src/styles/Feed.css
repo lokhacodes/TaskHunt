@@ -303,9 +303,29 @@
   color: var(--danger);
 }
 
+.action-btn__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-btn__icon svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  flex-shrink: 0;
+}
+
+.action-btn__count {
+  min-width: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .action-btn--liked .action-btn__icon {
   animation: heartPop 0.3s ease;
 }
+
 
 @keyframes heartPop {
   0% { transform: scale(1); }
@@ -452,6 +472,17 @@
   font-weight: 600;
 }
 
+/*Feed heading*/
+.feed-heading {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.feed-heading h2 {
+  margin-bottom: 0;
+}
+
 /*Pagination*/
 .pagination {
   display: flex;
@@ -462,6 +493,7 @@
 }
 
 .pagination__btn {
+
   padding: 8px 18px;
   border: 1.5px solid var(--border);
   border-radius: var(--radius-sm);

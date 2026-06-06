@@ -62,9 +62,22 @@ const Feed = () => {
         {user && <CreatePost onPostCreated={handlePostCreated} />}
 
         {/* Feed heading */}
-        <h2 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '12px' }}>
-          📰 Latest Posts
-        </h2>
+        <div className="feed-heading">
+          <h2
+            style={{
+              backgroundColor: "var(--primary-light)",
+              color: "#fff",
+              padding: "10px 20px",
+              borderRadius: "999px",
+              fontSize: "14px",
+              fontWeight: "600",
+              margin: 0,
+              marginBottom: "12px"
+            }}
+          >
+            All Posts
+          </h2>
+        </div>
 
         {/* Loading spinner */}
         {loading && (

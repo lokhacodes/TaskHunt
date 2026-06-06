@@ -3,7 +3,10 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { likePost, addComment, deleteComment, deletePost } from '../api';
 import { toast } from 'react-toastify';
+import { FaRegHeart, FaHeart } from 'react-icons/fa';
+import { BiCommentDetail } from 'react-icons/bi';
 import '../styles/Feed.css';
+
 
 //Helpers
 const timeAgo = (dateStr) => {
@@ -108,21 +111,7 @@ const PostCard = ({ post, onDelete }) => {
       )}
 
       {/* Stats */}
-      <div className="post-card__stats">
-        <div className="post-card__stats-left">
-          {likes.length > 0 && (
-            <span>❤️ {likes.length} {likes.length === 1 ? 'like' : 'likes'}</span>
-          )}
-        </div>
-        {comments.length > 0 && (
-          <button
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '0.825rem' }}
-            onClick={() => setShowComments(!showComments)}
-          >
-            {comments.length} {comments.length === 1 ? 'comment' : 'comments'}
-          </button>
-        )}
-      </div>
+      
 
       {/* Action buttons */}
       <div className="post-card__actions">
@@ -133,14 +122,19 @@ const PostCard = ({ post, onDelete }) => {
               onClick={handleLike}
               disabled={loadingLike}
             >
-              <span className="action-btn__icon">{isLiked ? '❤️' : '🤍'}</span>
-              {isLiked ? 'Liked' : 'Like'}
+              <span className="action-btn__icon">
+                {isLiked ? <FaHeart color="#ff4d94" /> : <FaRegHeart />}
+              </span>
+              <span className="action-btn__count">{likes.length > 0 ? likes.length : null}</span>
             </button>
             <button
               className="action-btn"
               onClick={() => setShowComments(!showComments)}
             >
-              💬 Comment
+              <span className="action-btn__icon">
+                <BiCommentDetail />
+              </span>
+              <span className="action-btn__count">{comments.length > 0 ? comments.length : null}</span>
             </button>
           </>
         ) : (
